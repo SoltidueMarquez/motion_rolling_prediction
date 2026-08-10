@@ -1,0 +1,7 @@
+interface:
+  display_name: "RPM 复现与 AMASS 实验"
+  short_description: "部署 RPM、转换 AMASS，并完成训练测试与论文口径评估"
+  default_prompt: "使用 $motion-rolling-prediction-repro 审计并部署 RPM，完成 AMASS 数据转换、短训、测试和评估。"
+
+policy:
+  allow_implicit_invocation: true
