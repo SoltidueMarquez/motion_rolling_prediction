@@ -98,6 +98,44 @@
                 "--seed",
                 "10"
             ]
+        },
+        {
+            "name": "RPM: Step 2 - Official A-P1 Reactive Full HT Eval",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "D:\\Programme\\Python\\Anaconda3lenvs\\rpm\\python.exe",
+            "program": "${workspaceFolder}\\test.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONDONTWRITEBYTECODE": "1"
+            },
+            "args": [
+                "--model_path",
+                "${workspaceFolder}\\checkpoints\\amass_p1\\reactive\\model_latest.pt",
+                "--dataset",
+                "amass_p1",
+                "--dataset_path",
+                "${workspaceFolder}\\datasets_processed",
+                "--support_dir",
+                "${workspaceFolder}\\SMPL",
+                "--results_dir",
+                "${workspaceFolder}\\results\\official_recheck_full",
+                "--test_split",
+                "test",
+                "--dataset_max_samples",
+                "-1",
+                "--eval",
+                "--eval_batch_size",
+                "1",
+                "--eval_gap_config",
+                "hand_tracking",
+                "--device",
+                "0",
+                "--seed",
+                "10"
+            ]
         }
     ]
 }

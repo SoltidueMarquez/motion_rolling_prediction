@@ -1,6 +1,11 @@
 # Final reproducible environment and runtime configuration.
 FD6AE9988945EAEDD7A6F2139207979968B10BCF4276CD97DC242ABE55A823C8  1814  environment.rtx5070ti.yaml
-5F70A3143DC1AE8E9E2D8D9A4BEA304A655A7D1D968A7751F24CFEDA8682BCF4  3715  .vscode\launch.json
+6E9CB4FFA2D1C5D00353D87EEEAFFF87A1BB7C31984DD779FF51CB30A0EC4DB7  5063  .vscode\launch.json
+
+# Reproduction protocol and evidence records after the full A-P1 MC recheck and HT launch preparation.
+E65FD36C818B65DCAD66DB9FEB64E724DFD08CEBDDFA78EC15CD683DDD37740D  12196  .codex\skills\motion-rolling-prediction-repro\SKILL.md
+E629F53EEF1B314399E505A704A77674A3DFE416FDA99BF06B2C03A862F1E9D9  10282  .codex\skills\motion-rolling-prediction-repro\references\repository-audit.md
+6B80ABAF93BA47EEB6D83D34D1F45CEF9546BD3667B48BF5F80BED2728EE6822  17030  documents\reproduction-log.md
 
 # Necessary compatibility fixes retained after pilot cleanup.
 A97952A25EB05073E66710725A53384F2EE97070451846274514E25B8B46146A  12267  prepare_data.py
@@ -45,3 +50,6 @@ F10F049176C0662C57C64621F43E077DB5E1548581D8815163C3BB89425D8D0C  429488  result
 
 # Official A-P1 Reactive checkpoint inference smoke (MC, one sample).
 2F0DA8848FB00816547EC662D8707A83B7502420A5D63B53F7D7195BE73633C3  137  results\official_recheck\results\reactive\latest_rolling\results_amass_p1.csv
+
+# Official A-P1 Reactive checkpoint full MC recheck (523 evaluated sequences).
+3CCCADDF6C3142406F915D46172C81D5609BA6ED0660C10F9B9A9481EA55FDBA  37075  results\official_recheck_full\results\reactive\latest_rolling\results_amass_p1.csv

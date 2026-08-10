@@ -25,12 +25,12 @@
 - 完整 A-P1 转换与逐文件验收已完成：5251/5251 个序列、4,347,096 帧、9.657 GiB；processed tree SHA256 已记录。
 - 首次 pilot 暴露的 AMASS `gender` 0 维 ndarray 兼容问题已修复；临时测试在结论写入正式日志后按清理规则移除。
 - Full GPU 转换曾在 3070/5251 后因整段 SMPL-X forward 显存不足中止，随后按 README 使用 CPU Resume 完成；原始数据与转换算法未改。
-- 官方 A-P1 Reactive checkpoint 的 MC 单样本真实数据推理 smoke 已通过；CSV、指标与 SHA256 已记录。
+- 官方 A-P1 Reactive checkpoint 的 MC 单样本 smoke 与完整 MC 复评均已通过。完整评估加载 526 条、按官方最短长度规则评估 523 条；四项论文指标与 Table 1 对齐到公布精度，CSV、耗时与 SHA256 已记录。
 
 缺失或尚未执行：
 
 - 完整 A-P2 train/test `.pt`；
-- A-P1 Reactive 官方 checkpoint 的完整 MC 与 Hand-Tracking 复评（目前仅完成 MC 单样本 smoke）；
+- A-P1 Reactive 官方 checkpoint 的完整 Hand-Tracking 复评；完整 MC 已完成；
 - 训练 smoke、短训、正式训练和完整测试；
 - 官方 A-P1 Smooth `model_latest.pt` 为 0 bytes，属于上游发布资产缺陷。
 
@@ -126,7 +126,7 @@ Hand-Tracking 在上述命令后增加：
 --eval_gap_config hand_tracking
 ```
 
-Pilot 成功后移除 `--dataset_max_samples 1` 并按显存提高 batch。
+Pilot 成功后移除 `--dataset_max_samples 1` 并按显存提高 batch。当前 Windows/RTX 5070 Ti 的完整评估固定使用 `eval_batch_size=1`；MC 与 HT 使用同一个 `results_dir` 时，当前 `test.py` 会分别写入 `latest_rolling` 与 `latest_rolling_hand_tracking`，不会互相覆盖。
 
 ## 训练事实
 
@@ -154,7 +154,9 @@ Pilot 成功后移除 `--dataset_max_samples 1` 并按显存提高 batch。
 - MPJPE 5.18 cm
 - MPJVE 22.83 cm/s
 - Jitter 4.35 × 10² m/s³
+- PJ tracking→synthesis 15.28 × 10² m/s³
 - AUJ tracking→synthesis 60.51 × 10² m/s²
+- PJ synthesis→tracking 18.98 × 10² m/s³
 - AUJ synthesis→tracking 69.02 × 10² m/s²
 
 这些是论文目标，不是宽松通过阈值。只有模型、A-P1 数据、Hand-Tracking gap、评估 padding、单位和后处理一致时才可直接比较。
@@ -177,5 +179,6 @@ Pilot 成功后移除 `--dataset_max_samples 1` 并按显存提高 batch。
 
 - A-P1 Full CPU Resume 已完成并逐文件验收：5251/5251 个序列、4,347,096 帧、9.657 GiB，processed tree SHA256 为 `5A9392BEBBE5E6273C14EDCF2C8B69A56474558FC7752D986230CE7EA61797C5`。
 - 三数据集随机骨架检查与项目原生 SMPL-X GT MP4 smoke 均通过；Windows/Pyrender/SMPL-X 必要兼容差异已记录在 `documents/reproduction-log.md`。
-- 官方 A-P1 Reactive checkpoint 的 MC 单样本推理 smoke 已通过。完整 MC 在 batch 16 的约第 336 条和 batch 1 的第 339 条均因 Windows CUDA reserved cache 碎片累积而 OOM；失败邻域及最长 6746 帧序列均已隔离通过。`evaluation/evaluation.py` 现于 CUDA batch 边界释放未使用 cache，连续 50 条 smoke 后 reserved 保持 130 MiB。下一步以 batch 1 重跑完整 MC，再进行完整 Hand-Tracking 复评、训练 smoke 和短训。
+- 官方 A-P1 Reactive checkpoint 的完整 MC 已于 2026-08-10 使用 batch 1 评估完成：526 条输入中按官方 63 帧门槛过滤 3 条，523 条逐序列结果全部有限且文件名唯一；耗时 13 分 41 秒。聚合值为 MPJRE `3.25°`、MPJPE `4.08 cm`、MPJVE `19.21 cm/s`、Jitter `4.21×10² m/s³`，与论文 Table 1 对齐到公布精度。CSV SHA256 为 `3CCCADDF6C3142406F915D46172C81D5609BA6ED0660C10F9B9A9481EA55FDBA`。
+- `.vscode/launch.json` 已提供 `RPM: Step 2 - Official A-P1 Reactive Full HT Eval`：保持完整 MC 的 checkpoint、test split、batch 1、device 0 与 seed 10，仅增加 `--eval_gap_config hand_tracking`；预期输出位于 `results/official_recheck_full/results/reactive/latest_rolling_hand_tracking/`。下一步由用户运行该配置，再验收 HT 的 CSV、PJ/AUJ 数组、图和论文指标；随后进行训练 smoke 和短训。
 - A-P1 Smooth 因官方 `model_latest.pt` 为 0 bytes 暂不可复评，不得以 optimizer state 替代模型权重。

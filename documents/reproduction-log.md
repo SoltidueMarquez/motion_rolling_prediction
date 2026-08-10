@@ -127,3 +127,23 @@
 - 原 `evaluate_all()` 连续 20 条的显存采样显示：每条返回后的 live allocated 恒定为 `121.9 MiB`，但 CUDA reserved 随不同序列尺寸从 `254 MiB` 累积到 `678 MiB`。这是未使用缓存块碎片累积，不是仍被引用的模型或 mesh 张量泄漏。
 - 必要兼容修复：在 `evaluation/evaluation.py` 的每个 DataLoader batch 完成后，仅当 device 为 CUDA 时调用 `torch.cuda.empty_cache()`。它只归还未使用的缓存块，不改变模型输出、FK、样本、padding 或指标。
 - 修复后连续 50 条 smoke 通过：五项指标全部有限，最终 allocated/reserved 为 `121.9/130.0 MiB`，峰值 allocated `298.5 MiB`。结合最长 6746 帧序列的隔离通过，正式 Full MC 继续使用 batch 1，无需过滤任何序列。
+
+## 官方 A-P1 Reactive 完整 MC 复评完成
+
+- 运行日期：2026-08-10；VS Code 配置：`RPM: Step 1 - Official A-P1 Reactive Full MC Eval`。
+- 固定协议：官方 A-P1 Reactive `model_latest.pt`、A-P1 `test`、Motion Controllers（无 gap）、完整数据 `dataset_max_samples=-1`、CUDA device 0、`eval_batch_size=1`、seed 10；本地数据、SMPL-X 和结果路径均由命令行显式覆盖。
+- 加载 test 526 条；`SortedSampler` 按 A-P1 的 60 帧评估 padding 加 jerk 所需 3 帧门槛过滤 3 条，完整评估 523 条。评估主体耗时 13 分 41 秒。
+- 逐序列 CSV 为 523 行、7 列；523 个 filename 全部唯一、无重复行，MPJRE/MPJPE/MPJVE/pred jitter/GT jitter 均为 523/523 有限值。
+- 独立重算未四舍五入均值：MPJRE `3.253503732256°`、MPJPE `4.080012594302 cm`、MPJVE `19.209780292352 cm/s`、pred jitter `421.201718317400 m/s³`、GT jitter `371.263651902486 m/s³`。
+- 按论文单位与两位小数报告：MPJRE `3.25°`、MPJPE `4.08 cm`、MPJVE `19.21 cm/s`、Jitter `4.21 × 10² m/s³`；四项均与论文 Table 1 的 A-P1 MC / RPM-Reactive 对齐到公布精度。
+- 输出：`results/official_recheck_full/results/reactive/latest_rolling/results_amass_p1.csv`，37,075 bytes，SHA256 `3CCCADDF6C3142406F915D46172C81D5609BA6ED0660C10F9B9A9481EA55FDBA`。
+- 结论：`A_P1_REACTIVE_FULL_MC_OFFICIAL_RECHECK=PASS`。CUDA cache 兼容修复只释放未使用缓存，没有改变 checkpoint、样本、模型输出、SMPL-X FK 或指标公式。
+
+## 官方 A-P1 Reactive 完整 HT 待运行配置
+
+- 新增 VS Code 配置：`RPM: Step 2 - Official A-P1 Reactive Full HT Eval`。
+- 与已验收 MC 严格保持同一 checkpoint、A-P1 test split、完整样本、CUDA device 0、batch 1 和 seed 10；唯一任务协议变化是增加 `--eval_gap_config hand_tracking`。
+- `test.py` 会自动给 gap 评估输出追加 `_hand_tracking`，因此与 MC 共用 `results/official_recheck_full` 根目录也不会覆盖 MC。预期输出目录：`results/official_recheck_full/results/reactive/latest_rolling_hand_tracking/`。
+- 验收内容：523 条逐序列 CSV 的完整性与有限值；MPJRE、MPJPE、MPJVE、pred/GT Jitter；T→S/S→T jerk 数组和图；两向 PJ/AUJ；所有正式产物 SHA256。
+- 论文 A-P1 HT / RPM-Reactive 对照：MPJRE `3.82°`、MPJPE `5.18 cm`、MPJVE `22.83 cm/s`、Jitter `4.35 × 10² m/s³`、PJ T→S `15.28`、AUJ T→S `60.51`、PJ S→T `18.98`、AUJ S→T `69.02`。
+- 本节只记录可重复执行配置，尚未记录 HT 运行结果；用户完成 Launch 后再据真实 stdout 和输出文件更新结论。

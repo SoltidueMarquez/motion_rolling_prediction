@@ -108,9 +108,11 @@ SMPL-X 和 AMASS 需要用户账号/许可时，明确列出需要用户手工�
 1. 校验 release 压缩包、解压目录、checkpoint 和相邻 `args.json`。
 2. 评估时显式传入 `--dataset`、`--dataset_path`、`--support_dir` 和 `--results_dir`。否则 `utils/parser_util.py` 可能从作者的 `args.json` 恢复旧机器路径。
 3. 先使用 `--dataset_max_samples 1` 或少量样本跑通；再运行完整 A-P1 MC 和 `--eval_gap_config hand_tracking`。
-4. 固定 seed、checkpoint、split、batch、输入模式和 GPU；保存 stdout、CSV、NPZ、曲线图及其 SHA256。
-5. 至少报告 MPJRE、MPJPE、MPJVE、pred/GT Jitter。Hand-Tracking 还要报告 S→T/T→S 的 PJ、AUJ，并保留逐序列 CSV。
-6. 单位必须从 `utils/metrics.py` 与论文共同确认；未经确认不要把代码打印值手工乘除后写成论文指标。
+4. MC 与 Hand-Tracking 应复用同一组 checkpoint、split、seed、batch 和 GPU，仅让 HT 增加 `--eval_gap_config hand_tracking`。当前 `test.py` 会把 HT 输出目录自动加上 `_hand_tracking` 后缀，因此同一 `results_dir` 下的 MC `latest_rolling` 与 HT `latest_rolling_hand_tracking` 可以并存；运行前仍须确认目标目录，禁止覆盖已验收结果。
+5. 固定 seed、checkpoint、split、batch、输入模式和 GPU；保存 stdout、CSV、NPZ、曲线图及其 SHA256。
+6. 至少报告 MPJRE、MPJPE、MPJVE、pred/GT Jitter。Hand-Tracking 还要报告 S→T/T→S 的 PJ、AUJ，并保留逐序列 CSV。
+7. A-P1 Reactive 的论文对照向量为：MC `3.25° / 4.08 cm / 19.21 cm/s / 4.21×10² m/s³`；HT `3.82° / 5.18 cm / 22.83 cm/s / 4.35×10² m/s³`，且 `PJ T→S=15.28`、`AUJ T→S=60.51`、`PJ S→T=18.98`、`AUJ S→T=69.02`。这些是精确协议下的对照目标，不是宽松阈值。
+8. 单位必须从 `utils/metrics.py` 与论文共同确认；未经确认不要把代码打印值手工乘除后写成论文指标。
 
 ## 阶段 5：训练门槛
 
