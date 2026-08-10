@@ -4,7 +4,7 @@
 
 - 审计日期：2026-08-10
 - 仓库：`facebookresearch/motion_rolling_prediction`
-- 本地 commit：`64fe8f18101713814d4a552202f187c5604303ef`
+- 本地 commit：`67d6536aac43c1efaa9dde3c185fe001d3c4f8e9`（2026-08-10 AMASS 放置前的 HEAD）
 - 分支：`main`
 - 工作树：创建本 SKILL 前为 clean
 - 当前机器：Windows、NVIDIA GeForce RTX 5070 Ti、16 GB 显存、driver 576.52、compute capability 12.0
@@ -19,17 +19,22 @@
 - A-P1/A-P2 split 文件；
 - A-P1/A-P2 的 Hand-Tracking gap JSON；
 - A-P1/A-P2/GORP 的论文 mean/std 文件。
+- 独立 `rpm` Conda 环境（Python 3.10.16、PyTorch 2.7.0+cu128），RTX 5070 Ti 真实 forward/backward 已通过；
+- `human_body_prior/`、`body_visualizer/`、`SMPL/smplx/neutral/model.npz` 与官方 v0 checkpoints；
+- A-P1 所需三套已授权 AMASS `SMPL-X N` 原始数据，位于 `datasets_raw/amass_p1`，官方 split 覆盖 5251/5251；
+- 完整 A-P1 转换与逐文件验收已完成：5251/5251 个序列、4,347,096 帧、9.657 GiB；processed tree SHA256 已记录。
+- 首次 pilot 暴露的 AMASS `gender` 0 维 ndarray 兼容问题已修复；临时测试在结论写入正式日志后按清理规则移除。
+- Full GPU 转换曾在 3070/5251 后因整段 SMPL-X forward 显存不足中止，随后按 README 使用 CPU Resume 完成；原始数据与转换算法未改。
+- 官方 A-P1 Reactive checkpoint 的 MC 单样本真实数据推理 smoke 已通过；CSV、指标与 SHA256 已记录。
 
-缺失：
+缺失或尚未执行：
 
-- `human_body_prior/`
-- `body_visualizer/`
-- `SMPL/smplx/neutral/model.npz`
-- `checkpoints/`
-- A-P1/A-P2 实际转换后的 train/test `.pt`
-- 独立 `rpm` Conda 环境
+- 完整 A-P2 train/test `.pt`；
+- A-P1 Reactive 官方 checkpoint 的完整 MC 与 Hand-Tracking 复评（目前仅完成 MC 单样本 smoke）；
+- 训练 smoke、短训、正式训练和完整测试；
+- 官方 A-P1 Smooth `model_latest.pt` 为 0 bytes，属于上游发布资产缺陷。
 
-顶层 `.gitignore` 已忽略上述外部源码目录、SMPL、checkpoints、results，以及 `datasets_processed/*/new_format_data/*/` 下的转换数据。
+顶层 `.gitignore` 已忽略上述外部源码目录、SMPL、checkpoints、results、`datasets_raw/`，以及 `datasets_processed/*/new_format_data/*/` 下的转换数据。
 
 ## 官方外部资产
 
@@ -168,10 +173,9 @@ Pilot 成功后移除 `--dataset_max_samples 1` 并按显存提高 batch。
 10. 做 1～10 step 训练 smoke、小样本过拟合和短训。
 11. 用户确认计算预算后才开始正式 100k 训练与完整评估。
 
-## 尚待新任务确认
+## 下一步待验证
 
-- 当前机器上是否已有满足 RPM 要求的 `SMPLX_NEUTRAL.npz`。
-- DiffusionPoser 的 AMASS 是否包含 RPM split 所需的 `SMPL-X N/*_stageii.npz`，且目录名完全匹配。
-- 官方 checkpoint archive 的内部目录、全部模型和 `args.json` 是否完整。
-- 当前可安装的 PyTorch CUDA 构建中，哪个能在 RTX 5070 Ti 上稳定运行 RPM 全部算子。
-- 外部两个 Python 包应固定到哪个 commit；确认后记录 commit 与许可证。
+- A-P1 Full CPU Resume 已完成并逐文件验收：5251/5251 个序列、4,347,096 帧、9.657 GiB，processed tree SHA256 为 `5A9392BEBBE5E6273C14EDCF2C8B69A56474558FC7752D986230CE7EA61797C5`。
+- 三数据集随机骨架检查与项目原生 SMPL-X GT MP4 smoke 均通过；Windows/Pyrender/SMPL-X 必要兼容差异已记录在 `documents/reproduction-log.md`。
+- 官方 A-P1 Reactive checkpoint 的 MC 单样本推理 smoke 已通过。完整 MC 在 batch 16 的约第 336 条和 batch 1 的第 339 条均因 Windows CUDA reserved cache 碎片累积而 OOM；失败邻域及最长 6746 帧序列均已隔离通过。`evaluation/evaluation.py` 现于 CUDA batch 边界释放未使用 cache，连续 50 条 smoke 后 reserved 保持 130 MiB。下一步以 batch 1 重跑完整 MC，再进行完整 Hand-Tracking 复评、训练 smoke 和短训。
+- A-P1 Smooth 因官方 `model_latest.pt` 为 0 bytes 暂不可复评，不得以 optimizer state 替代模型权重。

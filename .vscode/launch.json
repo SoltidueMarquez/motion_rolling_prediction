@@ -5,13 +5,99 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "node",
+            "name": "RPM: Prepare AMASS P1 Full (CPU Resume)",
+            "type": "debugpy",
             "request": "launch",
-            "name": "Launch Program",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "program": "${file}"
+            "python": "D:\\Programme\\Python\\Anaconda3lenvs\\rpm\\python.exe",
+            "program": "${workspaceFolder}\\prepare_data.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--save_dir",
+                "${workspaceFolder}\\datasets_processed\\amass_p1\\new_format_data",
+                "--root_dir",
+                "${workspaceFolder}\\datasets_raw\\amass_p1",
+                "--splits_dir",
+                "${workspaceFolder}\\prepare_data\\amass_p1",
+                "--support_dir",
+                "${workspaceFolder}\\SMPL",
+                "--out_fps",
+                "60",
+                "--cpu"
+            ]
+        },
+        {
+            "name": "RPM: Official A-P1 Reactive Inference Smoke (MC, 1 Sample)",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "D:\\Programme\\Python\\Anaconda3lenvs\\rpm\\python.exe",
+            "program": "${workspaceFolder}\\test.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONDONTWRITEBYTECODE": "1"
+            },
+            "args": [
+                "--model_path",
+                "${workspaceFolder}\\checkpoints\\amass_p1\\reactive\\model_latest.pt",
+                "--dataset",
+                "amass_p1",
+                "--dataset_path",
+                "${workspaceFolder}\\datasets_processed",
+                "--support_dir",
+                "${workspaceFolder}\\SMPL",
+                "--results_dir",
+                "${workspaceFolder}\\results\\official_recheck",
+                "--test_split",
+                "test",
+                "--dataset_max_samples",
+                "1",
+                "--eval",
+                "--eval_batch_size",
+                "1",
+                "--device",
+                "0",
+                "--seed",
+                "10"
+            ]
+        },
+        {
+            "name": "RPM: Step 1 - Official A-P1 Reactive Full MC Eval",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "D:\\Programme\\Python\\Anaconda3lenvs\\rpm\\python.exe",
+            "program": "${workspaceFolder}\\test.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONDONTWRITEBYTECODE": "1"
+            },
+            "args": [
+                "--model_path",
+                "${workspaceFolder}\\checkpoints\\amass_p1\\reactive\\model_latest.pt",
+                "--dataset",
+                "amass_p1",
+                "--dataset_path",
+                "${workspaceFolder}\\datasets_processed",
+                "--support_dir",
+                "${workspaceFolder}\\SMPL",
+                "--results_dir",
+                "${workspaceFolder}\\results\\official_recheck_full",
+                "--test_split",
+                "test",
+                "--dataset_max_samples",
+                "-1",
+                "--eval",
+                "--eval_batch_size",
+                "1",
+                "--device",
+                "0",
+                "--seed",
+                "10"
+            ]
         }
     ]
 }

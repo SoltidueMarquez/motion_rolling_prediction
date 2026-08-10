@@ -1,124 +1,129 @@
 # RPM 可验证复现日志
 
-## 基线
+## 基线与环境
 
-- 日期：2026-08-10
-- 仓库：`facebookresearch/motion_rolling_prediction`
-- 分支：`main`
-- Commit：`64fe8f18101713814d4a552202f187c5604303ef`
-- 操作系统：Windows 11 专业版 64 位（Build 22631）
-- GPU：NVIDIA GeForce RTX 5070 Ti，16303 MiB
-- NVIDIA driver：576.52
-- Compute capability：12.0
-- Conda：25.5.1
-- 环境状态：独立 `rpm` 环境已创建并通过 CUDA、SMPL-X 和 RPM checkpoint smoke。
+- 日期：2026-08-10；仓库：`facebookresearch/motion_rolling_prediction`；分支：`main`。
+- 本轮开始时 HEAD：`67d6536aac43c1efaa9dde3c185fe001d3c4f8e9`。
+- Windows 11；NVIDIA GeForce RTX 5070 Ti 16 GB；driver 576.52；compute capability 12.0。
+- 独立环境：`D:\Programme\Python\Anaconda3lenvs\rpm`；Python 3.10.16。
+- PyTorch：`2.7.0+cu128`；TorchVision `0.22.0+cu128`；TorchAudio `2.7.0+cu128`；CUDA runtime 12.8。
+- 环境创建基线：
+  ```powershell
+  conda create -n rpm python=3.10.16 pip=24.2 setuptools=75.1.0 wheel=0.44.0 -y
+  D:\Programme\Python\Anaconda3lenvs\rpm\python.exe -m pip install torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/cu128
+  ```
+- 最终重建配置：`environment.rtx5070ti.yaml`。原 `environment.yaml` 未修改。
+- 硬件兼容偏差：官方环境是 PyTorch 2.5.1/CUDA 11.8；RTX 5070 Ti 使用 PyTorch 2.7.0/CUDA 12.8。真实 GPU forward、loss、backward、SMPL-X FK 和 RPM checkpoint forward/backward 均已通过，不能称为与论文软件环境完全一致。
 
 ## 外部资产
 
-### human_body_prior
+- `human_body_prior`：commit `78c86eae5ed518ae22bf197fd74211bbfa45551a`，已部署到仓库根并可导入。
+- `body_visualizer`：commit `293bb54d1bdb026fe6f89c2def4a030c8f2c2ec3`，已部署到仓库根并可导入。
+- SMPL-X locked-head Neutral：用户经官网登录和许可证取得；部署为 `SMPL/smplx/neutral/model.npz`。
+- RPM 官方 v0 checkpoint：解压到 `checkpoints/`；A-P1 Reactive 可加载。A-P1 Smooth 官方 `model_latest.pt` 为 0 bytes，属于上游发布资产缺陷，不得伪称已复评。
+- 用户提供的原压缩包均保留在项目外，未移动或改写。外部压缩包、已部署模型和关键配置的大小/SHA256 见 `documents/manifests/rpm-reproduction.sha256`；checkpoint 完整清单见 `documents/manifests/rpm-checkpoints-v0.sha256`。
 
-- 状态：文件级部署完成；`rpm` 环境中 `BodyModel` 导入与 CPU/GPU smoke 已通过。
-- 官方来源：`https://github.com/nghorbani/human_body_prior`
-- 固定 commit：`78c86eae5ed518ae22bf197fd74211bbfa45551a`
-- 原始下载文件：`D:\Desktop\动画项目\human_body_prior-78c86eae5ed518ae22bf197fd74211bbfa45551a.zip`
-- 压缩包大小：8,565,276 bytes
-- 压缩包 SHA256：`B92B3EFA4AA1AF0EC84D2634FE2CD6B28D26B7AE579CEB2D72B5182931222F3F`
-- 许可证：上游自定义非商业科学研究许可证；许可证副本保存为 `human_body_prior/LICENSE`。
-- 目标路径：`D:\Desktop\动画项目\motion_rolling_prediction\human_body_prior`
-- 部署方式：仅复制压缩包中的 `human_body_prior/` Python 包，并补入上游 `LICENSE`；没有把上游仓库根目录整体嵌套进目标目录。
-- 目标文件：34 个，共 1,022,662 bytes。
-- 结构验证：`__init__.py`、`body_model/body_model.py`、`tools/rotation_tools.py` 和 `LICENSE` 均存在。
-- 安全验证：压缩包 81 个条目，单一根目录，未发现绝对路径或 `..` 路径穿越条目。
-- Git 状态：目标目录命中仓库现有 `.gitignore` 的 `human_body_prior` 规则。
-- 环境验证：`human_body_prior.body_model.body_model.BodyModel` 导入成功；SMPL-X CPU/GPU FK 的形状、有限值与梯度验证通过。
+## AMASS Protocol 1 原始数据
 
-### body_visualizer
+- 数据类型：用户经 AMASS 登录和许可证取得的 `SMPL-X N` / `*_stageii.npz`。
+- 项目内只读原始数据根：`datasets_raw/amass_p1`，已被 `.gitignore` 忽略。
+- 归档目录映射：`BMLrub → BioMotionLab_NTroje`、`CMU → CMU`、`HDM05 → MPI_HDM05`。
+- 解压结果：BioMotionLab_NTroje 3061、CMU 1983、MPI_HDM05 215 个 stageii 文件；共 22,029,178,159 bytes。
+- 官方 P1 split 覆盖 5251/5251、缺失 0：train 4725，test 526。CMU 归档另含 8 个未进入协议 split 的文件，不擅自加入实验。
+- 抽样元数据：`surface_model_type=smplx`、`gender=neutral`、pose 165D、betas 16D、120 FPS。
 
-- 状态：文件级部署完成；`rpm` 环境中可视化模块导入验证已通过。
-- 官方来源：`https://github.com/nghorbani/body_visualizer`
-- 固定 commit：`293bb54d1bdb026fe6f89c2def4a030c8f2c2ec3`
-- 原始下载文件：`D:\Desktop\动画项目\body_visualizer-293bb54d1bdb026fe6f89c2def4a030c8f2c2ec3.zip`
-- 压缩包大小：152,847 bytes
-- 压缩包 SHA256：`761DB0E8BEDF7B3F114220EAE7B8050466D138189CB5537E307B01B65F4BFE35`
-- 许可证：上游自定义非商业科学研究许可证；许可证副本保存为 `body_visualizer/LICENSE`。
-- 目标路径：`D:\Desktop\动画项目\motion_rolling_prediction\body_visualizer`
-- 部署方式：仅复制压缩包中的 `body_visualizer/` Python 包，并补入上游 `LICENSE`；没有把上游仓库根目录整体嵌套进目标目录。
-- 目标文件：13 个，共 41,349 bytes。
-- 结构验证：`__init__.py`、`mesh/mesh_viewer.py`、`tools/vis_tools.py` 和 `LICENSE` 均存在。
-- 安全验证：压缩包 36 个条目，单一根目录，未发现绝对路径或 `..` 路径穿越条目。
-- Git 状态：目标目录命中仓库现有 `.gitignore` 的 `body_visualizer` 规则。
-- 环境验证：`body_visualizer.mesh.mesh_viewer.MeshViewer` 与 Pyrender/Trimesh 导入成功；本阶段不生成可视化产物。
+## 必要代码与路径修复
 
-### SMPL-X Neutral（locked head / NPZ）
+1. README 把 `--save_dir` 写成 `datasets_processed/amass_p1`，但 Dataset 实际读取 `datasets_processed/amass_p1/new_format_data`；正式配置使用后者。
+2. 官方 AMASS 的 `gender` 是 0 维 NumPy ndarray。原 `prepare_data.py` 直接调用 `.upper()` 会失败；当前代码将 ndarray/NumPy scalar/bytes 严格规范成字符串，并保留官方转换算法和 split。
+3. PyTorch 2.6+ 默认 `torch.load(weights_only=True)` 无法加载 RPM 转换文件内的 NumPy 元数据与 `SMPLModelType`；`data_loaders/dataloader.py` 仅对可信本地转换产物显式使用 `weights_only=False`，mean/std 仍使用 `weights_only=True`。
+4. 不存在第二套转换实现；AMASS 始终由原仓库 `prepare_data.py` 处理。
 
-- 状态：文件级部署完成；`BodyModel` CPU/GPU FK 数值验证已通过。
-- 官方来源：`https://smpl-x.is.tue.mpg.de/download.php`
-- 授权来源：由用户从需要登录及接受许可证的 SMPL-X 官方下载页提供；不复制、公开或提交模型文件。
-- 上游压缩包：`smplx_lockedhead_20230207.zip`
-- 原始下载文件：`D:\Desktop\动画项目\smplx_lockedhead_20230207.zip`
-- 压缩包大小：411,448,739 bytes
-- 压缩包 SHA256：`88D35123FC97151BC258DC6F28F3967AE4C16117E4B452445F20598C43C43099`
-- 压缩包内容：Female、Male、Neutral 三个 NPZ；RPM 仅提取 `models_lockedhead/smplx/SMPLX_NEUTRAL.npz`。
-- 目标路径：`D:\Desktop\动画项目\motion_rolling_prediction\SMPL\smplx\neutral\model.npz`
-- 目标文件大小：137,106,406 bytes
-- 目标文件 SHA256：`43D8F3A1375D7C5BAAE207870A5D51DEF0F7E6B507DF709B4937598B5E7D965D`
-- 安全验证：源 ZIP 共 6 个条目，未发现绝对路径或 `..` 路径穿越条目；原始 ZIP 未移动或修改。
-- NPZ 结构验证：28 个数组；`v_template`、`shapedirs`、`posedirs`、`J_regressor`、`weights`、`kintree_table`、`f` 均存在。
-- Git 状态：目标文件命中仓库现有 `.gitignore` 的 `SMPL` 规则。
-- 数值验证：CPU/GPU 零姿态输出 vertices `(1, 10475, 3)`、joints `(1, 55, 3)`，全部有限；GPU pose backward 梯度有限。
+## 6 样本 pilot 转换与验收
 
-### RPM 官方 v0 checkpoints
+- 用户从 VS Code 运行原 `prepare_data.py`；参数：
+  ```text
+  --save_dir datasets_processed/amass_p1/new_format_data
+  --root_dir datasets_raw/amass_p1
+  --splits_dir prepare_data/amass_p1_pilot
+  --support_dir SMPL
+  --out_fps 60
+  ```
+- 第一次运行在 `gender.upper()` 失败，未生成序列；修复 NumPy 标量读取后重新运行成功。
+- 产物：6/6 个 `.pt`，8392 帧，18,122,102 bytes；每个数据集各一个 train/test。
+- 数据契约：local/global motion `(T,132)`、sparse `(T,54)`、world joints `(T,22,3)`、head transform `(T,4,4)`；body parameters 为 `T+1`，首帧用于速度计算；60 FPS；gender/model type/path 均正确。
+- 全部张量有限；最大局部旋转正交误差 `4.470348e-06`，最大 determinant 误差 `4.470348e-06`。
+- 六个样本用 SMPL-X Neutral 重新 FK；与保存 world joints 的最大绝对误差 `2.384186e-07`。
+- 真实训练 batch 成功：motion `(1,70,132)`、motion context `(1,70,132)`、sparse `(1,71,54)`，全部有限。
+- 结论：`AMASS_P1_PILOT_VALIDATION=PASS`。六个 `.pt` 编号与完整官方 split 的第一条一致，将由全量转换安全跳过并复用。
 
-- 状态：文件级部署完成；A-P1 Reactive 加载与合成输入 forward/backward smoke 已通过，真实数据复评待 AMASS P1 pilot；A-P1 Smooth 存在官方资产缺陷。
-- 官方来源：`https://github.com/facebookresearch/motion_rolling_prediction/releases/tag/v0`
-- 原始下载文件：`D:\Desktop\动画项目\RPM相关材料\rpm_checkpoints.zip`
-- 压缩包大小：882,648,883 bytes
-- 压缩包 SHA256：`A0848B33BD3162EAABECE5C8D8EF79EA8C3499ADE9688C681941B91BFD672837`
-- 官方元数据核对：GitHub release API 返回的资产大小为 882,648,883 bytes，digest 为同一 SHA256；本地下载完整。
-- 目标路径：`D:\Desktop\动画项目\motion_rolling_prediction\checkpoints`
-- 解压结果：24 个文件，共 965,276,231 bytes；8 个配置目录均存在，每个目录均包含相邻 `args.json` 和 optimizer state。
-- 完整文件清单：`documents/manifests/rpm-checkpoints-v0.sha256`
-- A-P1 Reactive：`model_latest.pt` 为 49,822,233 bytes，SHA256 `CFBF2A23C0BDE3D1B30AAD587144DA1B6BA3FE26D90767950AA54248BAFA88D7`；相邻 `args.json` 存在，协议参数为 input motion 10、free-running 60、motion/sparse context 10/10。
-- A-P1 Smooth 官方缺陷：ZIP 内及解压后的 `checkpoints/amass_p1/smooth/model_latest.pt` 均为 0 bytes，SHA256 为标准空文件哈希 `E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855`。ZIP 本身与 GitHub 官方 digest 一致，因此不是本地下载或解压损坏。该目录虽有 `args.json` 和 `opt_latest.pt`，但不能作为可加载模型 checkpoint。
-- 协议观察：官方 A-P2 Reactive checkpoint 的 `args.json` 使用 `input_motion_length=5`，与教程训练命令文字存在差异；若后续复评 A-P2，以 checkpoint 相邻参数为证据并记录差异。
-- 安全验证：ZIP 共 37 个条目，单一 `checkpoints` 根目录，未发现绝对路径或 `..` 路径穿越条目；原始 ZIP 未移动或修改。
-- Git 状态：目标目录命中仓库现有 `.gitignore` 的 `checkpoints` 规则。
-- 复评顺序：环境与 A-P1 pilot 数据就绪后，先加载并复评 A-P1 Reactive；A-P1 Smooth 暂记为“官方发布资产不可用”，不得伪称已复评。
+## Pilot 后清理
 
-## RPM 独立环境部署
+- 已清理一次性 `prepare_data/amass_p1_pilot`、临时 `tests/`、分散的 `documents/logs/`、冗余 Conda export/freeze 快照、Python 缓存及无必要的 `.vscode/settings.json`。
+- 已清理项目外重复的 6 文件 pilot raw 副本（44,795,058 bytes）；项目内完整 raw 和三个原始 AMASS 压缩包均保留。
+- 两份过时 manifest 已合并为 `documents/manifests/rpm-reproduction.sha256`；正式 checkpoint 完整 manifest 单独保留。
+- 上述目录均移入 Windows 回收站；Git 已跟踪文件也可从当前 Git 历史恢复，重复 pilot raw 可从保留的原压缩包重新提取。
+- 保留：原项目、必要兼容修复、RPM SKILL、最终环境配置、正式 launch、原始下载数据、完整 raw、6 个有效 `.pt`、官方 checkpoint、精简日志和必要 SHA256。
 
-### 环境与安装来源
+## 完整 A-P1 转换执行与 CPU 续跑
 
-- 环境名：`rpm`
-- 环境路径：`D:\Programme\Python\Anaconda3lenvs\rpm`
-- Python：`3.10.16`；pip：`24.2`；setuptools：`75.1.0`；wheel：`0.44.0`。
-- 创建命令：`conda create -n rpm python=3.10.16 pip=24.2 setuptools=75.1.0 wheel=0.44.0 -y`。
-- 首次创建失败：用户 `.condarc` 的清华 Conda channels 在当时网络下触发 `SSL: WRONG_VERSION_NUMBER`，且唯一配置的 package cache `D:\Programme\Python\Anaconda\pkgs` 不可写；失败日志保留为 `documents/logs/01-conda-create-rpm.txt`。
-- 成功重试：仅在当前进程设置 `CONDA_PKGS_DIRS=C:\Users\WINDOWS\.conda\pkgs`，并使用 `--override-channels -c defaults`；未修改用户 `.condarc`，未写入 base 环境。
-- Conda 创建成功耗时：257.98 秒；日志：`documents/logs/01b-conda-create-rpm-official-defaults.txt`。
-- PyTorch 安装命令：`python -m pip install torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/cu128`。
-- PyTorch CUDA wheels 只来自官方 `download.pytorch.org/whl/cu128`；3.338 GB 主 wheel 实测约 19.1 MB/s，总耗时 579.69 秒；日志：`documents/logs/02-pytorch-cu128-install.txt`。
-- RPM 通用依赖最终使用 `https://pypi.tuna.tsinghua.edu.cn/simple`，并加 `--no-cache-dir`；安装耗时 112.93 秒。
-- 镜像实测：官方 PyPI/Files 路线约 45–65 KB/s；阿里源约 70 KB/s；腾讯与清华初测曾出现 TLS 错误。用户网络状态变化后，清华源 `grpcio` 达 88.3 MB/s，`numpy` 达 90.8 MB/s。
-- 镜像完整性：清华源 `numpy==1.26.0` wheel SHA256 为 `09AAEE96C2CBDEA95DE76ECB8A586CB687D281C881F5F17BFC0FB7F5890F6B91`，与 PyPI 声明一致。华为源返回的同一 wheel 哈希为 `C8090E5413ECD245C31D19FC96127F7BAB7AFD9107F862E38FCAD37598399BFC`，pip 因与期望哈希不一致而拒绝安装；没有绕过校验，后续安装不再使用华为源。
-- 依赖偏差：保持官方 pip 列表的版本，但用 `sympy==1.13.3` 代替官方 `1.13.1`，因为 PyTorch 2.7.0 声明要求 `sympy>=1.13.3`。`pyglet==2.1.1` 按仓库基线保留，安装时记录了 PyPI yanked 警告。
-- 环境大小：6,692,973,284 bytes（6.233 GiB），43,077 个文件。测量时 D 盘可用约 1,086.24 GiB。
+- 首次 Full 使用 GPU 运行原 `prepare_data.py`，`--splits_dir` 指向官方 `prepare_data/amass_p1`。BioMotionLab_NTroje train/test 全部完成，CMU train 完成前 6 个；连同此前其它 pilot 产物，当前共有 3070 个有效序列 `.pt`。
+- GPU Full 在第一个缺失输出 `CMU/train/7.pt`（源 `CMU/01/01_09_stageii.npz`，120 FPS 原始 4242 帧、60 FPS 输出 2121 帧）附近触发 `CUDA out of memory`。异常在 `.cpu()` 报告是 CUDA 异步执行的同步点，实际内存不足发生在前面的整段 SMPL-X forward。
+- 该行为符合原 README 对长序列 OOM 的提示；正式恢复策略是不修改转换算法，按 README 加 `--cpu`。`.vscode/launch.json` 现只保留 `RPM: Prepare AMASS P1 Full (CPU Resume)`。
+- 转换脚本会按既有编号跳过 3070 个已完成文件，从首个缺失文件继续；不得删除或覆盖已有有效产物。
+- 预期总序列 5251；当前已有 3070 个将按编号跳过，剩余 2181 个。
+- 根据 pilot 的 raw→processed 比例估计，完整转换数据约新增 8.3 GiB；建议预留 10–12 GiB。记录时 D 盘可用约 1058 GiB。
+- GPU 阶段实际用时约 6 分钟后触发 OOM。CPU Resume 会明显更慢，预计剩余转换约 1–4 小时；以实际前 10 个新文件速度重新校准，不改变数据协议。
+- 本预算只涉及数据转换，不涉及训练预算。完整转换尚未启动；启动前由用户确认。
+- 完整转换通过后，按既定顺序先复评官方 A-P1 Reactive checkpoint，再进行训练 smoke、短训与正式训练预算评估。
 
-### 验证结果
+## 完整 A-P1 转换验收与可视化
 
-- CUDA 基础门槛：`torch==2.7.0+cu128`、CUDA runtime `12.8`、cuDNN `90701`、RTX 5070 Ti、compute capability `(12, 0)`，arch list 包含 `sm_120`。1024x1024 GPU 矩阵前向、loss 和 backward 成功，输出与梯度全部有限。
-- 调用记录：第一次 CUDA 门槛使用 PowerShell `python -c` 时引号被 native argument parsing 剥离，在执行 CUDA 之前即以 `SyntaxError` 退出；改为通过 stdin 传入代码后通过，成功记录为 `documents/logs/03-cuda-gate.txt`。
-- 依赖：`numpy==1.26.0`；Human Body Prior、Body Visualizer、SciPy、Pandas、OpenCV、Trimesh、Pyrender 和 TensorBoard 导入成功。`pip check` 输出 `No broken requirements found.`。
-- 入口：`train.py --help` 与 `test.py --help` 均以 exit code 0 退出。
-- SMPL-X CPU/GPU：零姿态 vertices `(1, 10475, 3)`、joints `(1, 55, 3)`，值全部有限；GPU pose backward 梯度有限。
-- RPM checkpoint：A-P1 Reactive 官方 checkpoint 为 49,822,233 bytes，加载 63-key state dict。合成输入 motion `(1, 10, 132)`、motion context `(1, 10, 132)`、sparse `(1, 20, 54)`；输出 `(1, 10, 132)`，loss/backward 成功，60 个参数梯度张量全部有限。
-- A-P1 Smooth：不测试；官方 `model_latest.pt` 为 0 bytes，继续记为官方资产缺陷。
-- 可重复 smoke：`D:\Programme\Python\Anaconda3lenvs\rpm\python.exe scripts\smoke_rpm_environment.py`；总耗时 16.54 秒，输出 `RPM_ENVIRONMENT_SMOKE=PASS`。
+- 用户于 2026-08-10 使用原仓库 `prepare_data.py` 完成 CPU Resume，参数为：
+  ```text
+  --save_dir datasets_processed/amass_p1/new_format_data
+  --root_dir datasets_raw/amass_p1
+  --splits_dir prepare_data/amass_p1
+  --support_dir SMPL
+  --out_fps 60
+  --cpu
+  ```
+- 输出与官方 split 完全一致，共 5251/5251 个 `.pt`、4,347,096 帧、10,368,914,075 bytes（9.657 GiB）：
+  - BioMotionLab_NTroje：train 2754 / test 307，1,877,860 帧；
+  - CMU：train 1778 / test 197，1,949,175 帧；
+  - MPI_HDM05：train 193 / test 22，520,061 帧。
+- 对全部 5251 个文件逐一执行深度读取与数据契约检查：路径/编号连续，必需字段齐全，local/global motion `(T,132)`、sparse `(T,54)`、world joints `(T,22,3)`、head transform `(T,4,4)`，body parameters 帧关系正确，60 FPS，SMPL-X/Neutral，所有张量均为有限值，head transform 齐次末行正确。最短 3 帧，最长 11,473 帧。
+- 按排序后的相对路径与逐文件内容哈希计算的完整 processed tree SHA256：`5A9392BEBBE5E6273C14EDCF2C8B69A56474558FC7752D986230CE7EA61797C5`。结论：`AMASS_P1_FULL_VALIDATION=PASS`。
+- 使用固定随机种子 `20260810`，从三个数据集 test split 各取一条序列、每条取三个时刻，直接绘制已保存的 `position_global_full_gt_world` 骨架；未发现 NaN、爆点、肢体断裂或异常尺度。输出：`results/amass_p1_data_sanity/amass_p1_random_gt_skeletons.png`。
+- 项目原生可视化入口已确认：`test.py --vis_gt` 生成 GT SMPL-X MP4，`test.py --vis` 生成 checkpoint 预测 MP4，`--vis_export` 导出 OBJ/JSON；内部调用 `evaluation.visualization.VisualizerWrapper` 和 `utils.utils_visualize.save_animation`。
+- Windows 原生 GT 视频 smoke 使用官方可视化子集中的 `BioMotionLab_NTroje-13`：159 帧、60 FPS、800×800、2.65 秒，输出 `results/amass_p1_data_sanity/official_gt/BioMotionLab_NTroje-13_gt.mp4`，并抽取首/中/末帧生成 contact sheet。视频可解码且人体、地面、头/双手标记与坐标轴稳定。
+- 为使原生可视化在 Windows + SMPL-X 下真正产出有效帧，保留三项必要兼容修复：Windows 不强制 EGL，face-color 棋盘网格关闭 Pyrender smooth，顶点颜色数量由硬编码 SMPL 6890 改为当前网格实际顶点数（SMPL-X 为 10475）。这些仅影响渲染后端和材质，不改变 AMASS 转换、模型输入或评估数值。
+- 可视化产物 SHA256：骨架 PNG `D6D38E3EE1C016B44613C9BFC89D792B9B931BFFAABA22587DE6B6A9D331CFA9`；GT MP4 `A31D588D056E960AFA1981A815C3FA5AD64C8FEB8BA4B19EE4625A7D3A994858`；contact sheet `F10F049176C0662C57C64621F43E077DB5E1548581D8815163C3BB89425D8D0C`。
+- 下一步严格保持协议顺序：先复评官方 A-P1 Reactive checkpoint，再进行训练 smoke 与短训；A-P1 Smooth 官方模型文件仍为 0 bytes，不得伪造复评结果。
 
-### 固化与边界
+## 官方 A-P1 Reactive checkpoint 推理 smoke
 
-- 推荐重建文件：`environment.rtx5070ti.yaml`。它保留 Python 3.10.16 与 RPM 固定依赖，并明确指向 PyTorch 官方 cu128 index；原 `environment.yaml` 未修改。
-- 精确状态：`documents/environments/rpm-conda-export.yaml`、`rpm-conda-explicit.txt` 和 `rpm-pip-freeze.txt`。其中 Conda export 会展示用户 `.condarc` 的 channel 列表，不代表本次成功创建使用这些 channel；重建应以经审计的 `environment.rtx5070ti.yaml` 为主。
-- SHA256：环境配置、smoke 脚本、导出文件、日志与本阶段关键模型记录在 `documents/manifests/rpm-environment.sha256`。
-- 论文环境偏差：为支持 RTX 5070 Ti，使用 PyTorch 2.7.0/CUDA 12.8，而不是官方环境的 PyTorch 2.5.1/CUDA 11.8；该部署不可描述为与论文软件环境完全一致。
-- 本阶段边界：未读写或移动原始 AMASS；未做 AMASS P1 转换；未做真实数据官方 checkpoint 复评、训练或测试。下一阶段仍需先定位已授权的 AMASS/SMPL-H 文件，仅生成少量 A-P1 pilot，并确认 Dataset 实际读取路径后才复评官方 checkpoint。
+- 运行日期：2026-08-10；入口：`test.py`；设置：A-P1 test、Motion Controllers（无 gap）、官方 Reactive `model_latest.pt`、seed 10、CUDA device 0、`dataset_max_samples=1`、`eval_batch_size=1`。
+- 命令参数显式覆盖本地 `dataset_path`、`support_dir` 与 `results_dir`，模型结构和 rolling 参数从 checkpoint 相邻的官方 `args.json` 恢复：prediction window 10、motion context 10、sparse context 10、free-running 60。
+- checkpoint 加载通过，`unexpected keys: []`；模型推理、SMPL-X FK、指标计算与 CSV 写出均成功。评估主体耗时约 1.89 秒。
+- 实际样本：`BioMotionLab_NTroje-1`，235 帧。单样本结果：MPJRE `5.472794°`、MPJPE `6.498073 cm`、MPJVE `4.2385435 cm/s`、pred jitter `106.671364 m/s³`、GT jitter `178.31349 m/s³`。
+- 输出：`results/official_recheck/results/reactive/latest_rolling/results_amass_p1.csv`，137 bytes，SHA256 `2F0DA8848FB00816547EC662D8707A83B7502420A5D63B53F7D7195BE73633C3`。
+- Transformer nested-tensor 与 `torch.cross` 信息均为当前依赖版本的性能/弃用提醒，不影响本次数值链；没有为消除 warning 修改模型或指标。
+- 论文 A-P1 MC 的 RPM-Reactive 全测试集参考值为 MPJRE `3.25°`、MPJPE `4.08 cm`、MPJVE `19.21 cm/s`、Jitter `4.21 × 10² m/s³`。当前只有一个样本，不能与论文聚合值直接比较，结论仅为“官方权重推理 smoke 通过”，尚不是论文结果复现。
+- 下一步：移除 `dataset_max_samples=1`，先做完整 A-P1 MC 官方权重复评；通过后再做 `eval_gap_config=hand_tracking` 的完整 HT 复评。
+
+## 完整 A-P1 MC 首次尝试 OOM 与重试配置
+
+- 完整 MC 首次使用官方教程建议的 `eval_batch_size=16`；数据加载为 526 条，评估 padding 过滤 3 条，计划评估 523 条（33 batches）。运行至 21/33 完成、进入第 22 batch 的 SMPL-X FK 时触发 CUDA OOM；CSV 只在完整评估结束后写出，因此本次没有不完整 CSV，结果目录为空。
+- 第 22 batch 的序列长度范围为 593–696 帧，并非数据集最长序列；这证明报错与 batch=16 时的显存组合峰值有关，不能通过过滤长序列伪装成完整复评。
+- 使用官方 checkpoint、相同 A-P1 MC 协议和 CUDA device 0 做无输出隔离诊断：`CMU-80`（696 帧）在 batch=1 时峰值 allocated/reserved 为 `1164.0/1216.0 MiB`；全 test 最长的 `BioMotionLab_NTroje-219`（6746 帧）为 `10187.2/10584.0 MiB`，两者均成功。
+- `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` 在当前 Windows PyTorch 构建上明确报告不支持，未写入正式配置。
+- 正式 Full MC Launch 仅将 `eval_batch_size` 从 16 降为 1；不修改 checkpoint、数据、split、padding、模型、FK 或指标。预计运行时间约 15–30 分钟，输出仍为 `results/official_recheck_full/results/reactive/latest_rolling/results_amass_p1.csv`。
+
+### Batch 1 第二次 OOM 与 CUDA cache 修复
+
+- Batch 1 正式重跑在 339/523、约 3 分 40 秒处再次于 `get_body_poses()` 的 SMPL-X LBS 触发 OOM。其失败位置与 batch 16 的 `21×16≈336` 高度一致，说明降 batch 只改变进度显示，没有消除连续评估中的累积显存问题。
+- 排序位置附近的 `CMU-46`（600 帧）、`BioMotionLab_NTroje-133`（620 帧）和 `BioMotionLab_NTroje-106`（632 帧）均在新进程中隔离通过，峰值 allocated 约 1.02–1.07 GiB，排除坏样本和单条序列固有 OOM。
+- 原 `evaluate_all()` 连续 20 条的显存采样显示：每条返回后的 live allocated 恒定为 `121.9 MiB`，但 CUDA reserved 随不同序列尺寸从 `254 MiB` 累积到 `678 MiB`。这是未使用缓存块碎片累积，不是仍被引用的模型或 mesh 张量泄漏。
+- 必要兼容修复：在 `evaluation/evaluation.py` 的每个 DataLoader batch 完成后，仅当 device 为 CUDA 时调用 `torch.cuda.empty_cache()`。它只归还未使用的缓存块，不改变模型输出、FK、样本、padding 或指标。
+- 修复后连续 50 条 smoke 通过：五项指标全部有限，最终 allocated/reserved 为 `121.9/130.0 MiB`，峰值 allocated `298.5 MiB`。结合最长 6746 帧序列的隔离通过，正式 Full MC 继续使用 batch 1，无需过滤任何序列。

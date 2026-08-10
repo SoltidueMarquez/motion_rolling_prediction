@@ -5,6 +5,7 @@
 
 import argparse
 import os
+import sys
 
 import numpy as np
 import torch
@@ -15,7 +16,6 @@ from loguru import logger
 from tqdm import tqdm
 from utils import utils_transform
 from utils.constants import SMPLGenderParam, SMPLModelType
-import sys
 
 
 def replace_slashes(path: str) -> str:
@@ -30,6 +30,45 @@ def replace_slashes(path: str) -> str:
         return path.replace('/', '\\')
     else:
         return path
+
+
+def metadata_scalar_to_string(value, field_name: str) -> str:
+    """Convert scalar AMASS metadata to a non-empty Python string."""
+    if isinstance(value, np.ndarray):
+        if value.size != 1:
+            raise ValueError(
+                f"AMASS metadata '{field_name}' must contain one value, "
+                f"got shape {value.shape}"
+            )
+        value = value.item()
+    elif isinstance(value, np.generic):
+        value = value.item()
+
+    if isinstance(value, bytes):
+        value = value.decode("utf-8")
+    if not isinstance(value, str):
+        raise TypeError(
+            f"AMASS metadata '{field_name}' must be a string, "
+            f"got {type(value).__name__}"
+        )
+
+    value = value.strip()
+    if not value:
+        raise ValueError(f"AMASS metadata '{field_name}' cannot be empty")
+    return value
+
+
+def parse_smpl_gender(value) -> tuple[str, SMPLGenderParam]:
+    """Return the canonical serialized gender and its body-model enum."""
+    gender = metadata_scalar_to_string(value, "gender").lower()
+    try:
+        gender_param = SMPLGenderParam[gender.upper()]
+    except KeyError as error:
+        supported = ", ".join(item.value.lower() for item in SMPLGenderParam)
+        raise ValueError(
+            f"Unsupported AMASS gender '{gender}'; expected one of: {supported}"
+        ) from error
+    return gender, gender_param
 
 
 def from_smpl_to_input_features(
@@ -156,16 +195,16 @@ def main(args, device="cuda:0"):
                 # type of body model
                 if "surface_model_type" in bdata:
                     new_body_model_type = SMPLModelType.parse(
-                        bdata["surface_model_type"].item()
+                        metadata_scalar_to_string(
+                            bdata["surface_model_type"], "surface_model_type"
+                        )
                     )
                     assert (
                         body_model_type == "" or body_model_type == new_body_model_type
                     ), "Can't mix different body models: {} vs {}".format(
                         body_model_type, new_body_model_type
                     )
-                    body_model_type = SMPLModelType.parse(
-                        bdata["surface_model_type"].item()
-                    )
+                    body_model_type = new_body_model_type
                 else:
                     body_model_type = SMPLModelType.SMPLH  # by default
 
@@ -198,7 +237,9 @@ def main(args, device="cuda:0"):
                     continue
                 bdata_poses = bdata["poses"][downsamp_inds, ...]
                 bdata_trans = bdata["trans"][downsamp_inds, ...]
-                smpl_gender = bdata["gender"]
+                smpl_gender, smpl_gender_param = parse_smpl_gender(
+                    bdata["gender"]
+                )
 
                 body_parms = {
                     "root_orient": torch.Tensor(
@@ -218,14 +259,14 @@ def main(args, device="cuda:0"):
                 body_pose_world = body_model(
                     {k: v.to(device) for k, v in body_parms.items()},
                     body_model_type,
-                    SMPLGenderParam[smpl_gender.upper()],
+                    smpl_gender_param,
                 )
                 gt_joints_world_space = body_pose_world.Jtr[
                     :, :22, :
                 ].cpu()  # position of joints relative to the world origin
 
                 kintree = body_model.get_kin_tree(
-                    body_model_type, SMPLGenderParam[smpl_gender.upper()]
+                    body_model_type, smpl_gender_param
                 )
                 data = from_smpl_to_input_features(
                     bdata_poses,

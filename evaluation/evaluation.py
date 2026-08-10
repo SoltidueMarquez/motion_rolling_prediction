@@ -330,6 +330,15 @@ class EvaluatorWrapper:
                     )
                     total_samples += 1
 
+                # SMPL-X FK allocates buffers whose sizes vary with sequence
+                # length. On Windows CUDA, the cached blocks can become
+                # fragmented over a full sorted evaluation even though no live
+                # tensors are retained between batches. Releasing only unused
+                # cached blocks here prevents cumulative OOM without changing
+                # the model outputs or metric calculations.
+                if str(self.device).startswith("cuda"):
+                    torch.cuda.empty_cache()
+
         df_titles = ["filename", "num_frames"] + [
             k for k in log.keys() if not is_array_based_metric(k)
         ]

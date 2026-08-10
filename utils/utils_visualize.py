@@ -216,10 +216,13 @@ def save_animation(
         # if fId == 300:
         #    break
         try:
+            body_vertices = c2c(body_pose.v[fId])
             body_mesh = trimesh.Trimesh(
-                vertices=c2c(body_pose.v[fId]),
+                vertices=body_vertices,
                 faces=faces,
-                vertex_colors=np.tile([0.9, 0.7, 0.7, 0.8], (6890, 1)),
+                vertex_colors=np.tile(
+                    [0.9, 0.7, 0.7, 0.8], (body_vertices.shape[0], 1)
+                ),
             )
             if export_meshes:
                 path = os.path.join(meshes_path, f"./mesh_{fId:06d}.obj")
